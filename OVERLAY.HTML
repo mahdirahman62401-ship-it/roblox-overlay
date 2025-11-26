@@ -1,0 +1,137 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Portrait Overlay (9:16)</title>
+<style>
+  html,body{height:100%;margin:0;padding:0;font-family:Inter,Arial,Helvetica,sans-serif;-webkit-font-smoothing:antialiased}
+  .canvas{position:relative;width:100%;height:100vh;background-size:cover;background-position:center center;overflow:hidden}
+
+  .subscriber-box{
+    position:absolute;
+    top:38px;
+    right:28px;
+    width:330px;
+    height:360px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    background:rgba(255,255,255,0.95);
+    border-radius:12px;
+    box-shadow:0 10px 30px rgba(0,0,0,0.18);
+    text-align:center;
+    padding:18px;
+  }
+  .subscriber-box .label{font-weight:700;font-size:20px;color:#333}
+  .subscriber-box .count{font-size:56px;font-weight:900;margin-top:6px;color:#111;letter-spacing:1px}
+
+  .new-subscriber{
+    position:absolute;
+    left:50%;
+    transform:translateX(-50%) translateY(20px);
+    bottom:120px;
+    min-width:60%;
+    max-width:86%;
+    background:rgba(255,255,255,0.98);
+    padding:18px 24px;
+    border-radius:40px;
+    font-size:28px;
+    font-weight:800;
+    color:#111;
+    text-align:center;
+    box-shadow:0 12px 40px rgba(0,0,0,0.25);
+    opacity:0;
+    pointer-events:none;
+    transition: transform .33s cubic-bezier(.2,.9,.2,1), opacity .33s ease;
+  }
+  .new-subscriber.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+  .top-left-circle{
+    position:absolute;
+    left:18px;
+    top:28px;
+    width:200px;
+    height:200px;
+    border-radius:50%;
+    overflow:hidden;
+    border:6px solid rgba(255,255,255,0.9);
+    box-shadow:0 10px 30px rgba(0,0,0,0.14);
+    background:rgba(255,255,255,0.05);
+  }
+
+  @media (max-width:420px){
+    .subscriber-box{width:260px;height:300px;right:16px;top:22px}
+    .subscriber-box .count{font-size:44px}
+    .new-subscriber{font-size:20px;bottom:90px}
+    .top-left-circle{width:150px;height:150px;left:12px;top:14px}
+  }
+</style>
+</head>
+<body>
+  <div id="canvas" class="canvas"></div>
+
+  <div id="topCircle" class="top-left-circle" aria-hidden="true"></div>
+
+  <div id="subs" class="subscriber-box">
+    <div class="label">Subscribers</div>
+    <div id="count" class="count">0</div>
+  </div>
+
+  <div id="newSub" class="new-subscriber">New Subscriber</div>
+
+<script>
+  const BACKGROUND_URL = "https://raw.githubusercontent.com/mahdirahman62401-ship-it/roblox-overlay/main/overlay.png";
+  const STATUS_URL = "https://348f6396-83d7-4186-a7ea-acb260cd1808-00-3urcai6uicyjs.sisko.replit.dev/status";
+  const POLL_MS = 1000;
+  const POPUP_DURATION = 4200;
+
+  document.getElementById('canvas').style.backgroundImage = `url(${BACKGROUND_URL})`;
+
+  let lastCount = 0;
+  let lastSubscriber = null;
+  let popupTimeout = null;
+
+  function updateUI(data){
+    if(!data) return;
+    const countEl = document.getElementById('count');
+    const newSubEl = document.getElementById('newSub');
+
+    if(typeof data.subscriberCount === 'number'){
+      if(data.subscriberCount !== lastCount){
+        countEl.style.transition = 'transform .16s ease';
+        countEl.style.transform = 'scale(1.14)';
+        setTimeout(()=> countEl.style.transform = 'scale(1)', 140);
+      }
+      countEl.textContent = data.subscriberCount;
+      lastCount = data.subscriberCount;
+    }
+
+    if(data.latestSubscriber && data.latestSubscriber !== lastSubscriber){
+      lastSubscriber = data.latestSubscriber;
+      newSubEl.textContent = `${data.latestSubscriber} just subscribed!`;
+      newSubEl.classList.add('show');
+      if(popupTimeout) clearTimeout(popupTimeout);
+      popupTimeout = setTimeout(()=> {
+        newSubEl.classList.remove('show');
+      }, POPUP_DURATION);
+    }
+  }
+
+  async function poll(){
+    try{
+      const resp = await fetch(STATUS_URL, {cache: 'no-store'});
+      if(!resp.ok) throw new Error('status fetch failed');
+      const data = await resp.json();
+      updateUI(data);
+    }catch(e){
+      console.log('overlay poll error', e);
+    }finally{
+      setTimeout(poll, POLL_MS);
+    }
+  }
+  poll();
+</script>
+</body>
+</html>
